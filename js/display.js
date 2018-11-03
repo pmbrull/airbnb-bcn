@@ -4,12 +4,13 @@
  * using reusable charts pattern:
  * http://bost.ocks.org/mike/chart/
  */
-var scrollVis = function () {
+var scrollVis = function() {
+
   // constants to define the size
   // and margins of the vis area.
   var width = 800;
   var height = 520;
-  var margin = { top: 0, left: 20, bottom: 40, right: 10 };
+  var margin = { top: 0, left: 20, bottom: 40, right: 20 };
 
   var separation = 10;
   var yStep = 100;
@@ -33,6 +34,16 @@ var scrollVis = function () {
   // d3 selection that will be used
   // for displaying visualizations
   var g = null;
+
+  // initialize scales
+  var xScale = d3.scaleLinear()
+    .range([margin.left, width - margin.right]);
+
+  var yScale = d3.scaleLinear()
+    .range([height, 0]);
+
+  var xAxisScatter = d3.axisBottom();
+  var yAxisScatter = d3.axisLeft();
  
 
   // When scrolling to a new section
@@ -84,10 +95,7 @@ var scrollVis = function () {
    * setupVis - creates initial elements for all
    * sections of the visualization.
    *
-   * @param wordData - data object for each word.
-   * @param fillerCounts - nested data that includes
-   *  element for each filler word type.
-   * @param histData - binned histogram data
+   * @param data - data object
    */
   var setupVis = function(data) {
 
@@ -129,8 +137,40 @@ var scrollVis = function () {
       .text('Rooms');
 
     g.selectAll('.summary-title')
-      .attr('opacity', 0); // make them visible
+      .attr('opacity', 0);
     //! count host title
+
+    // scaterPlot
+    // x axis shows earnings
+
+    xScale.domain([0, d3.max(data, function(d){
+      return d.earnings;})
+    ]);
+
+    yScale.domain([0, d3.max(data, function(d){
+      return d.id;})
+    ])
+
+    xAxisScatter.scale(xScale);
+    yAxisScatter.scale(yScale);
+
+    g.append('g')
+      .attr('class', 'x axis')
+      .attr('transform', 'translate(0,' + height + ')')
+      .call(xAxisScatter);
+    g.select('.x.axis').style('opacity', 0);
+
+    g.append('g')
+      .attr('class', 'y axis')
+      .attr('transform', 'translate(' + margin.left + ',0)')
+      //.attr('transform', 'translate(0,0)')
+      .call(yAxisScatter);
+    g.select('.x.axis').style('opacity', 0);
+
+
+
+
+    //! scatterPlot
 
   };
 
@@ -141,11 +181,11 @@ var scrollVis = function () {
    * the section's index.
    *
    */
-  var setupSections = function () {
+  var setupSections = function() {
     // activateFunctions are called each
     // time the active section changes
-    activateFunctions[0] = showTitle;
-    activateFunctions[1] = showFillerTitle;
+    activateFunctions[0] = showSummary;
+    activateFunctions[1] = showScatterPlot;
     // updateFunctions are called while
     // in a particular section to update
     // the scroll progress in that section.
@@ -153,8 +193,9 @@ var scrollVis = function () {
     // for all scrolling and so are set to
     // no-op functions.
     for (var i = 0; i < 3; i++) {
-      updateFunctions[i] = function () {};
+      updateFunctions[i] = function() {};
     }
+    // updateFunctions[I] = X
   };
 
   /**
@@ -173,18 +214,19 @@ var scrollVis = function () {
    */
 
   /**
-   * showTitle - initial title
+   * showSummary - initial summary
    *
-   * hides: count title
+   * hides: TODO scatterplot
    * (no previous step to hide)
-   * shows: intro title
+   * shows: summary title
    *
    */
-  function showTitle() {
-    g.selectAll('.count-title')
+  function showSummary() {
+
+    g.selectAll('.axis')
       .transition()
-      .duration(0)
-      .attr('opacity', 0);
+      .duration(100)
+      .style('opacity', 0);
 
     g.selectAll('.summary-title')
       .transition()
@@ -193,23 +235,45 @@ var scrollVis = function () {
   }
 
   /**
-   * showFillerTitle - filler counts
+   * showScatterPlot - Rooms vs. Earnings
    *
-   * hides: intro title
-   * hides: square grid
-   * shows: filler count title
+   * hides: summary title
+   * hides: TODO next step
+   * shows: scatter plot
    *
    */
-  function showFillerTitle() {
+  function showScatterPlot() {
+
     g.selectAll('.summary-title')
       .transition()
-      .duration(0)
+      .duration(100)
       .attr('opacity', 0);
 
-    g.selectAll('.count-title')
-      .transition()
-      .duration(600)
-      .attr('opacity', 1.0);
+    // ensure axis are set
+    showXAxis(xAxisScatter);
+    showYAxis(yAxisScatter);
+
+    
+  }
+
+  /**
+   * showAxis - helper function to
+   * display particular xAxis
+   *
+   * @param axis - the axis to show
+   */
+  function showXAxis(axis) {
+    g.select('.x.axis')
+      .call(axis)
+      .transition().duration(500)
+      .style('opacity', 1);
+  }
+
+  function showYAxis(axis) {
+    g.select('.y.axis')
+      .call(axis)
+      .transition().duration(500)
+      .style('opacity', 1);
   }
 
   /**
