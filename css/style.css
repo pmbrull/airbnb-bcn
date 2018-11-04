@@ -64,6 +64,12 @@
   fill: #4d4f53;
 }
 
+#vis .dot.scatter {
+  fill: #fd5c63;
+  fill-opacity: 0.7;
+  stroke-width: .5px;
+}
+
 .axis path,
 .axis line {
   fill: none;
@@ -82,4 +88,13 @@
 
 }
 
+.legend circle {
+  fill: none;
+  stroke: #ccc;
+}
 
+.legend text {
+  fill: #777;
+  font: 10px sans-serif;
+  text-anchor: middle;
+}

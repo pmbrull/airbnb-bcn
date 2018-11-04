@@ -40,10 +40,18 @@ var scrollVis = function() {
     .range([margin.left, width - margin.right]);
 
   var yScale = d3.scaleLinear()
-    .range([height, 0]);
+    .range([height, margin.bottom]);
+
+  var rScale = d3.scaleSqrt()
+    .range([2, 20])
 
   var xAxisScatter = d3.axisBottom();
   var yAxisScatter = d3.axisLeft();
+
+  // add the tooltip area to the webpage
+  var tooltip = d3.select("body").append("div")
+    .attr("class", "tooltip")
+    .style("opacity", 0);
  
 
   // When scrolling to a new section
@@ -99,6 +107,9 @@ var scrollVis = function() {
    */
   var setupVis = function(data) {
 
+    data = data.slice()
+            .sort((a, b) => b.earnings - a.earnings); // decreasing
+
     // count host title
     g.append('text')
       .attr('class', 'title summary-title')
@@ -141,33 +152,85 @@ var scrollVis = function() {
     //! count host title
 
     // scaterPlot
-    // x axis shows earnings
-
+    // x axis shows #rooms
+    // y axis shows earnings
     xScale.domain([0, d3.max(data, function(d){
-      return d.earnings;})
+      return d.id;})
     ]);
 
     yScale.domain([0, d3.max(data, function(d){
-      return d.id;})
+      return d.earnings;})
+    ])
+
+    rScale.domain([0, d3.max(data, function(d){
+      return d.earnings;})
     ])
 
     xAxisScatter.scale(xScale);
-    yAxisScatter.scale(yScale);
+    // show numbers in millions
+    yAxisScatter.scale(yScale)
+      .tickFormat(d => d/1000000 + 'M')
+      .tickSize(18)
+      .tickSizeOuter(0);
 
     g.append('g')
-      .attr('class', 'x axis')
+      .attr('class', 'x axis scatter')
       .attr('transform', 'translate(0,' + height + ')')
       .call(xAxisScatter);
-    g.select('.x.axis').style('opacity', 0);
+    g.select('.x.axis.scatter')
+      .style('opacity', 0);
 
     g.append('g')
-      .attr('class', 'y axis')
+      .attr('class', 'y axis scatter')
       .attr('transform', 'translate(' + margin.left + ',0)')
       //.attr('transform', 'translate(0,0)')
       .call(yAxisScatter);
-    g.select('.x.axis').style('opacity', 0);
+    g.select('.y.axis.scatter')
+      .style('opacity', 0);
 
+    g.select('.y.axis path')
+      .style('opacity', 0);
 
+    // draw dots of top 1000 hosts
+    g.selectAll(".dot.scatter")
+      .data(data.slice(0, 500))
+    .enter().append("circle")
+      .attr("class", "dot scatter")
+      .attr("r", d => rScale(d.earnings))
+      .attr("cx", d => xScale(d.id))
+      //.attr("cy", d => yScale(d.earnings))
+      .attr("cy", d => yScale(0))
+      .on("mouseover", function(d) {
+          tooltip.transition()
+               .duration(200)
+               .style("opacity", 0.9);
+          tooltip.html(d.id + " Rooms <br/> "
+                       + addThousandPoints(d.earnings)
+                       + "€")
+               .style("left", (d3.event.pageX + 15) + "px")
+               .style("top", (d3.event.pageY - 35) + "px");
+
+          d3.select(this)
+            .transition()
+            .duration(200)
+            .style('stroke-width', '0.9px')
+            .style('stroke', '#4d4f53');
+      })
+      .on("mouseout", function(d) {
+          tooltip.transition()
+               .duration(200)
+               .style("opacity", 0);
+
+          d3.select(this)
+            .transition()
+            .duration(200)
+            .style('stroke-width', '0px');
+      });
+
+    g.selectAll('.dot.scatter')
+      .transition("translate")
+      .duration(1000)
+      .attr('cy', d => yScale(d.earnings));
 
 
     //! scatterPlot
@@ -223,10 +286,15 @@ var scrollVis = function() {
    */
   function showSummary() {
 
-    g.selectAll('.axis')
+    g.selectAll('.scatter')
       .transition()
       .duration(100)
       .style('opacity', 0);
+
+    g.selectAll('.dot.scatter')
+      .transition("translate")
+      .duration(1000)
+      .attr('cy', d => yScale(0));
 
     g.selectAll('.summary-title')
       .transition()
@@ -250,8 +318,10 @@ var scrollVis = function() {
       .attr('opacity', 0);
 
     // ensure axis are set
-    showXAxis(xAxisScatter);
-    showYAxis(yAxisScatter);
+    showScatterXAxis(xAxisScatter);
+    showScatterYAxis(yAxisScatter);
+    showScatterDots();
+    showScatterLegend();
 
     
   }
@@ -262,18 +332,50 @@ var scrollVis = function() {
    *
    * @param axis - the axis to show
    */
-  function showXAxis(axis) {
-    g.select('.x.axis')
+  function showScatterXAxis(axis) {
+    g.select('.x.axis.scatter')
       .call(axis)
       .transition().duration(500)
       .style('opacity', 1);
   }
 
-  function showYAxis(axis) {
-    g.select('.y.axis')
+  function showScatterYAxis(axis) {
+    g.select('.y.axis.scatter')
       .call(axis)
       .transition().duration(500)
       .style('opacity', 1);
+  }
+
+  function showScatterDots() {
+    g.selectAll('.dot.scatter')
+      .transition("fade-in")
+      .duration(500)
+      .style('opacity', 0.7)
+
+    g.selectAll('.dot.scatter')
+      .transition("translate")
+      .duration(1000)
+      .attr('cy', d => yScale(d.earnings));
+      
+  }
+
+  function showScatterLegend() {
+    var legend = g.append("g")
+          .attr("class", "legend scatter")
+          .attr("transform", "translate(" + (width - 50) + "," + (height - 20) + ")")
+        .selectAll("g")
+          .data([1e6, 5e6, 10e6])
+        .enter().append("g");
+
+    legend.append("circle")
+        .attr("cy", function(d) { return -rScale(d); })
+        .attr("r", rScale);
+
+    legend.append("text")
+        .attr("y", function(d) { return -2 * rScale(d); })
+        .attr("dy", "1.3em") // translate text
+        .attr("dx", "3.8em")
+        .text(d3.format(".1s"));
   }
 
   /**
