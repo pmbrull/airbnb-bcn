@@ -45,6 +45,10 @@ var scrollVis = function() {
   var rScale = d3.scaleSqrt()
     .range([2, 20])
 
+  var colorScale = d3.scaleLinear()
+      .interpolate(d3.interpolateHcl)
+      .range([d3.rgb("#fd5c63"), d3.rgb('#1A237E')]);
+
   var xAxisScatter = d3.axisBottom();
   var yAxisScatter = d3.axisLeft();
 
@@ -166,10 +170,14 @@ var scrollVis = function() {
       return d.earnings;})
     ])
 
+    colorScale.domain([0, d3.max(data, function(d){
+      return d.id;})
+    ]);
+
     xAxisScatter.scale(xScale);
     // show numbers in millions
     yAxisScatter.scale(yScale)
-      .tickFormat(d => d/1000000 + 'M')
+      .tickFormat(d => d / 1000000 + 'M')
       .tickSize(18)
       .tickSizeOuter(0);
 
@@ -200,6 +208,7 @@ var scrollVis = function() {
       .attr("cx", d => xScale(d.id))
       //.attr("cy", d => yScale(d.earnings))
       .attr("cy", d => yScale(0))
+      .attr('fill', d => colorScale(d.id))
       .on("mouseover", function(d) {
           tooltip.transition()
                .duration(200)
@@ -227,11 +236,28 @@ var scrollVis = function() {
             .style('stroke-width', '0px');
       });
 
-    g.selectAll('.dot.scatter')
-      .transition("translate")
-      .duration(1000)
-      .attr('cy', d => yScale(d.earnings));
+    var legend = g.append("g")
+          .attr("class", "legend scatter")
+          .attr("transform", "translate(" + (width - 50) + "," + (height - 20) + ")")
+        .selectAll("g")
+          .data([1e6, 5e6, 10e6])
+        .enter().append("g");
 
+    legend.append("circle")
+        .attr("cy", function(d) { return -rScale(d); })
+        .attr("r", rScale);
+
+    legend.append("text")
+        .attr("y", function(d) { return -2 * rScale(d); })
+        .attr("dy", "1.3em") // translate text
+        .attr("dx", "3.8em")
+        .text(d3.format(".1s"));
+
+    g.append('text')
+      .attr('class', 'desc scatter')
+      .attr('x', width / 2)
+      .attr('y', yScale(0))
+      .text('Rooms vs. Earnings by host');
 
     //! scatterPlot
 
@@ -296,6 +322,11 @@ var scrollVis = function() {
       .duration(1000)
       .attr('cy', d => yScale(0));
 
+    g.selectAll('.desc.scatter')
+      .transition("translate-desc")
+      .duration(1000)
+      .attr('y', yScale(0));
+
     g.selectAll('.summary-title')
       .transition()
       .duration(600)
@@ -322,6 +353,7 @@ var scrollVis = function() {
     showScatterYAxis(yAxisScatter);
     showScatterDots();
     showScatterLegend();
+    showScatterDesc();
 
     
   }
@@ -350,7 +382,7 @@ var scrollVis = function() {
     g.selectAll('.dot.scatter')
       .transition("fade-in")
       .duration(500)
-      .style('opacity', 0.7)
+      .style('opacity', 0.7);
 
     g.selectAll('.dot.scatter')
       .transition("translate")
@@ -360,22 +392,18 @@ var scrollVis = function() {
   }
 
   function showScatterLegend() {
-    var legend = g.append("g")
-          .attr("class", "legend scatter")
-          .attr("transform", "translate(" + (width - 50) + "," + (height - 20) + ")")
-        .selectAll("g")
-          .data([1e6, 5e6, 10e6])
-        .enter().append("g");
 
-    legend.append("circle")
-        .attr("cy", function(d) { return -rScale(d); })
-        .attr("r", rScale);
+    g.select('.legend.scatter')
+      .style('opacity', 1)
+  }
 
-    legend.append("text")
-        .attr("y", function(d) { return -2 * rScale(d); })
-        .attr("dy", "1.3em") // translate text
-        .attr("dx", "3.8em")
-        .text(d3.format(".1s"));
+  function showScatterDesc() {
+
+    g.select('.desc.scatter')
+      .transition()
+      .duration(1000)
+      .attr('y', 20)
+      .style('opacity', 1.0)
   }
 
   /**
